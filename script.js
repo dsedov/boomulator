@@ -554,7 +554,7 @@ function drawGraph() {
     // Draw Y-axis with blue color
     ctx.beginPath();
     ctx.strokeStyle = '#2183c8';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.moveTo(margin.left, margin.top);
     ctx.lineTo(margin.left, height - margin.bottom);
     ctx.stroke();
@@ -562,7 +562,7 @@ function drawGraph() {
     // Draw X-axis with blue color
     ctx.beginPath();
     ctx.strokeStyle = '#2183c8';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.moveTo(margin.left, height - margin.bottom);
     ctx.lineTo(width - margin.right, height - margin.bottom);
     ctx.stroke();
@@ -583,6 +583,7 @@ function drawGraph() {
         // Draw tick
         ctx.beginPath();
         ctx.strokeStyle = '#2183c8';
+        ctx.lineWidth = 2;
         ctx.moveTo(margin.left - 5, yPos);
         ctx.lineTo(margin.left, yPos);
         ctx.stroke();
@@ -612,6 +613,7 @@ function drawGraph() {
         // Draw tick
         ctx.beginPath();
         ctx.strokeStyle = '#2183c8';
+        ctx.lineWidth = 2;
         ctx.moveTo(xPos, height - margin.bottom);
         ctx.lineTo(xPos, height - margin.bottom + 5);
         ctx.stroke();
