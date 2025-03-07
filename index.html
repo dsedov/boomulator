@@ -10,13 +10,13 @@
     <div class="container">
         <header>
             <h1>BOOMULATOR</h1>
-            <p class="subtitle">Terminal-based population dynamics simulator v1.0</p>
+            <p class="subtitle">> Terminal-based population dynamics simulator v1.0</p>
         </header>
         
         <main>
             <div class="card">
                 <div class="graph-container">
-                    <div id="loadingIndicator" class="loading">Simulating population dynamics...</div>
+                    <div id="loadingIndicator" class="loading">Processing data...</div>
                     <div class="graph">
                         <canvas id="populationGraph"></canvas>
                     </div>
@@ -78,25 +78,26 @@
                 </div>
                 
                 <button id="simulateBtn" class="btn">Run Simulation</button>
+                <p class="hint">*** Simulation auto-updates when sliders change ***</p>
                 
                 <div class="statistics">
                     <div class="stat-card">
                         <h3>Peak Population</h3>
                         <p id="peakPopulation">-</p>
                     </div>
-                    <div class="stat-card" style="background: linear-gradient(45deg, #ff006e, #ff5e78);">
+                    <div class="stat-card">
                         <h3>Year of Peak</h3>
                         <p id="peakYear">-</p>
                     </div>
-                    <div class="stat-card" style="background: linear-gradient(45deg, #8338ec, #a66fec);">
+                    <div class="stat-card">
                         <h3>End Population</h3>
                         <p id="endPopulation">-</p>
                     </div>
-                    <div class="stat-card" style="background: linear-gradient(45deg, #00b894, #55efc4);">
+                    <div class="stat-card">
                         <h3>Effective Replacement</h3>
                         <p id="effectiveReplacement">-</p>
                     </div>
-                    <div class="stat-card" style="background: linear-gradient(45deg, #0984e3, #74b9ff);">
+                    <div class="stat-card">
                         <h3>Migration Effect</h3>
                         <p id="migrationEffect">-</p>
                     </div>

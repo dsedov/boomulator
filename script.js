@@ -4,6 +4,9 @@ let childMortalitySlider, childMortalityValue, migrationSlider, migrationValue;
 let endYearSlider, endYearValue, simulateBtn, loadingIndicator;
 let peakPopulationEl, peakYearEl, endPopulationEl, tooltip;
 
+// For debouncing slider updates
+let updateTimerId = null;
+
 // Current simulation data
 let populationData = [];
 let mousePosition = { x: 0, y: 0 };
@@ -64,28 +67,48 @@ function setupCanvas() {
     canvas.style.height = `${rect.height}px`;
 }
 
+// Debounce function to prevent too many simulation runs
+function debounceUpdate(callback, delay = 200) {
+    if (updateTimerId) {
+        clearTimeout(updateTimerId);
+    }
+    updateTimerId = setTimeout(callback, delay);
+}
+
 // Event listeners
 function setupEventListeners() {
-    lifespanSlider.addEventListener('input', function() {
-        lifespanValue.textContent = this.value;
-    });
+    const sliderInputHandler = function() {
+        // Update the displayed value
+        switch(this.id) {
+            case 'lifespanSlider':
+                lifespanValue.textContent = this.value;
+                break;
+            case 'replacementSlider':
+                replacementValue.textContent = this.value;
+                break;
+            case 'childMortalitySlider':
+                childMortalityValue.textContent = parseFloat(this.value).toFixed(1);
+                break;
+            case 'migrationSlider':
+                migrationValue.textContent = parseFloat(this.value).toFixed(1);
+                break;
+            case 'endYearSlider':
+                endYearValue.textContent = this.value;
+                break;
+        }
+        
+        // Debounce the simulation update
+        debounceUpdate(runSimulation);
+    };
+
+    // Add input event listeners to all sliders
+    lifespanSlider.addEventListener('input', sliderInputHandler);
+    replacementSlider.addEventListener('input', sliderInputHandler);
+    childMortalitySlider.addEventListener('input', sliderInputHandler);
+    migrationSlider.addEventListener('input', sliderInputHandler);
+    endYearSlider.addEventListener('input', sliderInputHandler);
     
-    replacementSlider.addEventListener('input', function() {
-        replacementValue.textContent = this.value;
-    });
-    
-    childMortalitySlider.addEventListener('input', function() {
-        childMortalityValue.textContent = parseFloat(this.value).toFixed(1);
-    });
-    
-    migrationSlider.addEventListener('input', function() {
-        migrationValue.textContent = parseFloat(this.value).toFixed(1);
-    });
-    
-    endYearSlider.addEventListener('input', function() {
-        endYearValue.textContent = this.value;
-    });
-    
+    // Keep the button for immediate updates if needed
     simulateBtn.addEventListener('click', runSimulation);
     
     canvas.addEventListener('mousemove', function(e) {
@@ -413,12 +436,20 @@ function runSimulation() {
     const migrationRate = parseFloat(migrationSlider.value);
     const endYear = parseInt(endYearSlider.value);
     
+    // Update the UI to indicate simulation is running
+    simulateBtn.textContent = "Updating...";
+    simulateBtn.disabled = true;
+    
     // Simulate with a slight delay to allow UI to update
     setTimeout(() => {
         populationData = simulatePopulation(lifespan, fertilityRate, childMortality, migrationRate, endYear);
         drawGraph();
         updateStatistics();
         loadingIndicator.style.display = 'none';
+        
+        // Reset button
+        simulateBtn.textContent = "Run Simulation";
+        simulateBtn.disabled = false;
     }, 50);
 }
 
@@ -520,17 +551,17 @@ function drawGraph() {
     // Round maxPopulation to nearest 100 million for cleaner axis
     const roundedMaxPop = Math.ceil(maxPopulation / 1) * 1;
     
-    // Draw Y-axis with terminal cyan color
+    // Draw Y-axis with blue color
     ctx.beginPath();
-    ctx.strokeStyle = '#7dfdf9';
+    ctx.strokeStyle = '#2183c8';
     ctx.lineWidth = 1;
     ctx.moveTo(margin.left, margin.top);
     ctx.lineTo(margin.left, height - margin.bottom);
     ctx.stroke();
     
-    // Draw X-axis with terminal cyan color
+    // Draw X-axis with blue color
     ctx.beginPath();
-    ctx.strokeStyle = '#7dfdf9';
+    ctx.strokeStyle = '#2183c8';
     ctx.lineWidth = 1;
     ctx.moveTo(margin.left, height - margin.bottom);
     ctx.lineTo(width - margin.right, height - margin.bottom);
@@ -542,7 +573,7 @@ function drawGraph() {
     
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.font = '11px "Share Tech Mono", monospace';
+    ctx.font = '14px "Share Tech Mono", monospace';
     ctx.fillStyle = '#7dfdf9';
     
     for (let i = 0; i <= yTickCount; i++) {
@@ -551,14 +582,14 @@ function drawGraph() {
         
         // Draw tick
         ctx.beginPath();
-        ctx.strokeStyle = '#7dfdf9';
+        ctx.strokeStyle = '#2183c8';
         ctx.moveTo(margin.left - 5, yPos);
         ctx.lineTo(margin.left, yPos);
         ctx.stroke();
         
         // Draw grid line
         ctx.beginPath();
-        ctx.strokeStyle = 'rgba(125, 253, 249, 0.1)';
+        ctx.strokeStyle = 'rgba(33, 131, 200, 0.1)';
         ctx.moveTo(margin.left, yPos);
         ctx.lineTo(width - margin.right, yPos);
         ctx.stroke();
@@ -580,14 +611,14 @@ function drawGraph() {
         
         // Draw tick
         ctx.beginPath();
-        ctx.strokeStyle = '#ccc';
+        ctx.strokeStyle = '#2183c8';
         ctx.moveTo(xPos, height - margin.bottom);
         ctx.lineTo(xPos, height - margin.bottom + 5);
         ctx.stroke();
         
         // Draw grid line
         ctx.beginPath();
-        ctx.strokeStyle = '#eee';
+        ctx.strokeStyle = 'rgba(33, 131, 200, 0.1)';
         ctx.moveTo(xPos, margin.top);
         ctx.lineTo(xPos, height - margin.bottom);
         ctx.stroke();
@@ -597,8 +628,8 @@ function drawGraph() {
     }
     
     // Draw axis labels
-    ctx.font = '14px Arial';
-    ctx.fillStyle = '#444';
+    ctx.font = '14px "Share Tech Mono", monospace';
+    ctx.fillStyle = '#7dfdf9';
     
     // X-axis label
     ctx.textAlign = 'center';
@@ -613,9 +644,9 @@ function drawGraph() {
     ctx.fillText('Population (Billions)', 0, 0);
     ctx.restore();
     
-    // Draw the data line with terminal cyan color
+    // Draw the data line with blue color
     ctx.beginPath();
-    ctx.strokeStyle = '#7dfdf9';
+    ctx.strokeStyle = '#2183c8';
     ctx.lineWidth = 2;
     
     populationData.forEach((d, i) => {
@@ -633,8 +664,8 @@ function drawGraph() {
     
     // Add area under curve with gradient
     const gradientFill = ctx.createLinearGradient(0, margin.top, 0, height - margin.bottom);
-    gradientFill.addColorStop(0, 'rgba(125, 253, 249, 0.3)');
-    gradientFill.addColorStop(1, 'rgba(125, 253, 249, 0.05)');
+    gradientFill.addColorStop(0, 'rgba(33, 131, 200, 0.3)');
+    gradientFill.addColorStop(1, 'rgba(33, 131, 200, 0.05)');
     
     ctx.beginPath();
     ctx.fillStyle = gradientFill;
@@ -671,7 +702,7 @@ function drawGraph() {
         ctx.fillRect(x - 3, y - 3, 6, 6);
         
         ctx.beginPath();
-        ctx.strokeStyle = '#7dfdf9';
+        ctx.strokeStyle = '#2183c8';
         ctx.lineWidth = 1;
         ctx.strokeRect(x - 3, y - 3, 6, 6);
     }
