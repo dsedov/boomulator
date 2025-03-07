@@ -464,28 +464,28 @@ function updateStatistics() {
     // which is the typically accepted replacement rate for population stability
     const stabilityThreshold = 2.1;
     
-    // Classify and color-code the population trend
+    // Classify and color-code the population trend using terminal colors
     if (effectiveReplacement < stabilityThreshold * 0.85) {
-        // Severe decline - bright red
-        effectiveReplacementEl.style.color = '#e74c3c';
+        // Severe decline - terminal red
+        effectiveReplacementEl.style.color = '#e14833';
     } else if (effectiveReplacement < stabilityThreshold) {
-        // Mild decline - soft orange
-        effectiveReplacementEl.style.color = '#f39c12';
+        // Mild decline - terminal yellow
+        effectiveReplacementEl.style.color = '#eaffca';
     } else if (effectiveReplacement < stabilityThreshold * 1.15) {
-        // Stability - white
-        effectiveReplacementEl.style.color = '#ffffff';
+        // Stability - terminal cyan
+        effectiveReplacementEl.style.color = '#7dfdf9';
     } else {
-        // Growth - green
-        effectiveReplacementEl.style.color = '#2ecc71';
+        // Growth - terminal green
+        effectiveReplacementEl.style.color = '#5ae7b3';
     }
     
-    // Color code the migration effect
+    // Color code the migration effect using terminal colors
     if (migrationRate > 0) {
-        migrationEffectEl.style.color = '#2ecc71'; // Green for positive migration
+        migrationEffectEl.style.color = '#5ae7b3'; // Terminal green for positive migration
     } else if (migrationRate < 0) {
-        migrationEffectEl.style.color = '#e74c3c'; // Red for negative migration
+        migrationEffectEl.style.color = '#e14833'; // Terminal red for negative migration
     } else {
-        migrationEffectEl.style.color = '#ffffff'; // White for no migration
+        migrationEffectEl.style.color = '#7dfdf9'; // Terminal cyan for no migration
     }
 }
 
@@ -520,15 +520,18 @@ function drawGraph() {
     // Round maxPopulation to nearest 100 million for cleaner axis
     const roundedMaxPop = Math.ceil(maxPopulation / 1) * 1;
     
-    // Draw Y-axis
+    // Draw Y-axis with terminal cyan color
     ctx.beginPath();
-    ctx.strokeStyle = '#ccc';
+    ctx.strokeStyle = '#7dfdf9';
+    ctx.lineWidth = 1;
     ctx.moveTo(margin.left, margin.top);
     ctx.lineTo(margin.left, height - margin.bottom);
     ctx.stroke();
     
-    // Draw X-axis
+    // Draw X-axis with terminal cyan color
     ctx.beginPath();
+    ctx.strokeStyle = '#7dfdf9';
+    ctx.lineWidth = 1;
     ctx.moveTo(margin.left, height - margin.bottom);
     ctx.lineTo(width - margin.right, height - margin.bottom);
     ctx.stroke();
@@ -539,8 +542,8 @@ function drawGraph() {
     
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.font = '12px Arial';
-    ctx.fillStyle = '#666';
+    ctx.font = '11px "Share Tech Mono", monospace';
+    ctx.fillStyle = '#7dfdf9';
     
     for (let i = 0; i <= yTickCount; i++) {
         const yValue = i * yTickStep;
@@ -548,13 +551,14 @@ function drawGraph() {
         
         // Draw tick
         ctx.beginPath();
+        ctx.strokeStyle = '#7dfdf9';
         ctx.moveTo(margin.left - 5, yPos);
         ctx.lineTo(margin.left, yPos);
         ctx.stroke();
         
         // Draw grid line
         ctx.beginPath();
-        ctx.strokeStyle = '#eee';
+        ctx.strokeStyle = 'rgba(125, 253, 249, 0.1)';
         ctx.moveTo(margin.left, yPos);
         ctx.lineTo(width - margin.right, yPos);
         ctx.stroke();
@@ -609,10 +613,10 @@ function drawGraph() {
     ctx.fillText('Population (Billions)', 0, 0);
     ctx.restore();
     
-    // Draw the data line
+    // Draw the data line with terminal cyan color
     ctx.beginPath();
-    ctx.strokeStyle = '#3a86ff';
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#7dfdf9';
+    ctx.lineWidth = 2;
     
     populationData.forEach((d, i) => {
         const x = margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth;
@@ -629,8 +633,8 @@ function drawGraph() {
     
     // Add area under curve with gradient
     const gradientFill = ctx.createLinearGradient(0, margin.top, 0, height - margin.bottom);
-    gradientFill.addColorStop(0, 'rgba(58, 134, 255, 0.8)');
-    gradientFill.addColorStop(1, 'rgba(58, 134, 255, 0.1)');
+    gradientFill.addColorStop(0, 'rgba(125, 253, 249, 0.3)');
+    gradientFill.addColorStop(1, 'rgba(125, 253, 249, 0.05)');
     
     ctx.beginPath();
     ctx.fillStyle = gradientFill;
@@ -654,23 +658,22 @@ function drawGraph() {
     ctx.closePath();
     ctx.fill();
     
-    // Add data points
+    // Add data points with terminal styling
     const stepSize = Math.max(1, Math.floor(populationData.length / 20));
     for (let i = 0; i < populationData.length; i += stepSize) {
         const d = populationData[i];
         const x = margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth;
         const y = height - margin.bottom - (d.population / roundedMaxPop) * graphHeight;
         
+        // Draw square data points for terminal aesthetic
         ctx.beginPath();
-        ctx.fillStyle = '#fff';
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillStyle = '#131e21';
+        ctx.fillRect(x - 3, y - 3, 6, 6);
         
         ctx.beginPath();
-        ctx.strokeStyle = '#3a86ff';
-        ctx.lineWidth = 2;
-        ctx.arc(x, y, 4, 0, Math.PI * 2);
-        ctx.stroke();
+        ctx.strokeStyle = '#7dfdf9';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x - 3, y - 3, 6, 6);
     }
 }
 
