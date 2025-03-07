@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Population Dynamics Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Population Dynamics Simulator</h1>
+            <p class="subtitle">Explore how changes in average lifespan and replacement rate affect population growth over time</p>
+        </header>
+        
+        <main>
+            <div class="card">
+                <div class="graph-container">
+                    <div id="loadingIndicator" class="loading">Simulating population dynamics...</div>
+                    <div class="graph">
+                        <canvas id="populationGraph"></canvas>
+                    </div>
+                    <div id="tooltip" class="tooltip"></div>
+                </div>
+                
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="lifespan">Average Lifespan (years)</label>
+                        <div class="slider-container">
+                            <div class="slider-with-value">
+                                <input type="range" id="lifespanSlider" min="30" max="100" step="1" value="70">
+                                <span id="lifespanValue" class="slider-value">70</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="replacementRate">Total Fertility Rate (children per woman)</label>
+                        <div class="slider-container">
+                            <div class="slider-with-value">
+                                <input type="range" id="replacementSlider" min="0.5" max="5.0" step="0.1" value="2.1">
+                                <span id="replacementValue" class="slider-value">2.1</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="childMortality">Child Mortality Rate (%)</label>
+                        <div class="slider-container">
+                            <div class="slider-with-value">
+                                <input type="range" id="childMortalitySlider" min="0" max="20" step="0.5" value="2" 
+                                       oninput="document.getElementById('childMortalityValue').textContent = parseFloat(this.value).toFixed(1)">
+                                <span id="childMortalityValue" class="slider-value">2.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="endYear">End Year (simulation horizon)</label>
+                        <div class="slider-container">
+                            <div class="slider-with-value">
+                                <input type="range" id="endYearSlider" min="2030" max="2200" step="10" value="2100">
+                                <span id="endYearValue" class="slider-value">2100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="simulateBtn" class="btn">Run Simulation</button>
+                
+                <div class="statistics">
+                    <div class="stat-card">
+                        <h3>Peak Population</h3>
+                        <p id="peakPopulation">-</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(45deg, #ff006e, #ff5e78);">
+                        <h3>Year of Peak</h3>
+                        <p id="peakYear">-</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(45deg, #8338ec, #a66fec);">
+                        <h3>End Population</h3>
+                        <p id="endPopulation">-</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(45deg, #00b894, #55efc4);">
+                        <h3>Effective Replacement</h3>
+                        <p id="effectiveReplacement">-</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>Created with vanilla JavaScript and Canvas</p>
+        </footer>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
