@@ -56,6 +56,17 @@
                     </div>
                     
                     <div class="control-group">
+                        <label for="migrationRate">Migration Rate (per 1000)</label>
+                        <div class="slider-container">
+                            <div class="slider-with-value">
+                                <input type="range" id="migrationSlider" min="-10" max="10" step="0.5" value="0" 
+                                       oninput="document.getElementById('migrationValue').textContent = parseFloat(this.value).toFixed(1)">
+                                <span id="migrationValue" class="slider-value">0.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
                         <label for="endYear">End Year (simulation horizon)</label>
                         <div class="slider-container">
                             <div class="slider-with-value">
@@ -84,6 +95,10 @@
                     <div class="stat-card" style="background: linear-gradient(45deg, #00b894, #55efc4);">
                         <h3>Effective Replacement</h3>
                         <p id="effectiveReplacement">-</p>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(45deg, #0984e3, #74b9ff);">
+                        <h3>Migration Effect</h3>
+                        <p id="migrationEffect">-</p>
                     </div>
                 </div>
             </div>
