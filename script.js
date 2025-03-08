@@ -551,21 +551,23 @@ function drawGraph() {
     // Round maxPopulation to nearest 100 million for cleaner axis
     const roundedMaxPop = Math.ceil(maxPopulation / 1) * 1;
     
-    // Draw Y-axis with blue color
-    ctx.beginPath();
-    ctx.strokeStyle = '#2183c8';
-    ctx.lineWidth = 2;
-    ctx.moveTo(margin.left, margin.top);
-    ctx.lineTo(margin.left, height - margin.bottom);
-    ctx.stroke();
+    // Define pixel size for grid alignment
+    const pixelSize = 2;
     
-    // Draw X-axis with blue color
-    ctx.beginPath();
-    ctx.strokeStyle = '#2183c8';
-    ctx.lineWidth = 2;
-    ctx.moveTo(margin.left, height - margin.bottom);
-    ctx.lineTo(width - margin.right, height - margin.bottom);
-    ctx.stroke();
+    // Draw Y-axis with blue color using pixelated style
+    ctx.fillStyle = '#2183c8';
+    for (let y = margin.top; y <= height - margin.bottom; y += pixelSize) {
+        // Align to pixel grid
+        const alignedY = Math.floor(y / pixelSize) * pixelSize;
+        ctx.fillRect(margin.left - pixelSize/2, alignedY, pixelSize, pixelSize);
+    }
+    
+    // Draw X-axis with blue color using pixelated style
+    for (let x = margin.left; x <= width - margin.right; x += pixelSize) {
+        // Align to pixel grid
+        const alignedX = Math.floor(x / pixelSize) * pixelSize;
+        ctx.fillRect(alignedX, height - margin.bottom - pixelSize/2, pixelSize, pixelSize);
+    }
     
     // Y-axis ticks and labels
     const yTickCount = 10;
@@ -581,20 +583,14 @@ function drawGraph() {
         const yValue = i * yTickStep;
         const yPos = height - margin.bottom - (yValue / roundedMaxPop) * graphHeight;
         
-        // Draw tick
-        ctx.beginPath();
-        ctx.strokeStyle = '#2183c8';
-        ctx.lineWidth = 2;
-        ctx.moveTo(margin.left - 5, yPos);
-        ctx.lineTo(margin.left, yPos);
-        ctx.stroke();
+        // Draw pixelated tick
+        const alignedYPos = Math.floor(yPos / pixelSize) * pixelSize;
+        ctx.fillStyle = '#2183c8';
+        for (let x = margin.left - pixelSize*3; x < margin.left; x += pixelSize) {
+            ctx.fillRect(x, alignedYPos - pixelSize/2, pixelSize, pixelSize);
+        }
         
-        // Draw grid line
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(33, 131, 200, 0.1)';
-        ctx.moveTo(margin.left, yPos);
-        ctx.lineTo(width - margin.right, yPos);
-        ctx.stroke();
+        // No grid lines
         
         // Draw label
         ctx.fillText(`${yValue.toFixed(1)}B`, margin.left - 10, yPos);
@@ -611,20 +607,14 @@ function drawGraph() {
         const year = startYear + i * xTickStep;
         const xPos = margin.left + (i * xTickStep / (endYear - startYear)) * graphWidth;
         
-        // Draw tick
-        ctx.beginPath();
-        ctx.strokeStyle = '#2183c8';
-        ctx.lineWidth = 2;
-        ctx.moveTo(xPos, height - margin.bottom);
-        ctx.lineTo(xPos, height - margin.bottom + 5);
-        ctx.stroke();
+        // Draw pixelated tick
+        const alignedXPos = Math.floor(xPos / pixelSize) * pixelSize;
+        ctx.fillStyle = '#2183c8';
+        for (let y = height - margin.bottom; y < height - margin.bottom + pixelSize*3; y += pixelSize) {
+            ctx.fillRect(alignedXPos - pixelSize/2, y, pixelSize, pixelSize);
+        }
         
-        // Draw grid line
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(33, 131, 200, 0.1)';
-        ctx.moveTo(xPos, margin.top);
-        ctx.lineTo(xPos, height - margin.bottom);
-        ctx.stroke();
+        // No grid lines
         
         // Draw label
         ctx.fillText(year.toString(), xPos, height - margin.bottom + 10);
@@ -632,78 +622,77 @@ function drawGraph() {
     
     // No axis labels for cleaner console look
     
-    // Draw the data line with blue color - using stepped line for pixelated effect
-    ctx.beginPath();
-    ctx.strokeStyle = '#2183c8';
-    ctx.lineWidth = 3;
+    // Create a pixelated line with 2px squares using the yellow color
+    ctx.strokeStyle = '#eaffca'; // --yellow-color
+    ctx.fillStyle = '#eaffca'; // --yellow-color
+    ctx.lineWidth = 0;
     
-    // Draw stepped lines for a more pixelated look
-    const pixelStep = Math.max(1, Math.floor(populationData.length / 50));
+    // Draw pixel by pixel for a true pixelated look - more points for 2px size
+    const pixelStep = Math.max(1, Math.floor(populationData.length / 120));
+    let previousPixels = new Set(); // Track which pixels we've already drawn
     
     for (let i = 0; i < populationData.length; i += pixelStep) {
         const d = populationData[i];
-        const x = Math.floor((margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth) / 4) * 4;
-        const y = Math.floor((height - margin.bottom - (d.population / roundedMaxPop) * graphHeight) / 4) * 4;
+        // Calculate position and snap to pixelSize grid
+        const x = Math.floor((margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth) / pixelSize) * pixelSize;
+        const y = Math.floor((height - margin.bottom - (d.population / roundedMaxPop) * graphHeight) / pixelSize) * pixelSize;
         
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            // Use horizontal then vertical lines for a stepped effect
-            const prev = populationData[Math.max(0, i - pixelStep)];
-            const prevX = Math.floor((margin.left + ((prev.year - startYear) / (endYear - startYear)) * graphWidth) / 4) * 4;
-            const prevY = Math.floor((height - margin.bottom - (prev.population / roundedMaxPop) * graphHeight) / 4) * 4;
+        // Draw the pixel
+        const pixelKey = `${x},${y}`;
+        if (!previousPixels.has(pixelKey)) {
+            ctx.fillRect(x, y, pixelSize, pixelSize);
+            previousPixels.add(pixelKey);
+        }
+        
+        // Fill in gaps between points to create a continuous line
+        if (i > 0) {
+            const prev = populationData[i - pixelStep];
+            const prevX = Math.floor((margin.left + ((prev.year - startYear) / (endYear - startYear)) * graphWidth) / pixelSize) * pixelSize;
+            const prevY = Math.floor((height - margin.bottom - (prev.population / roundedMaxPop) * graphHeight) / pixelSize) * pixelSize;
             
-            ctx.lineTo(x, prevY);
-            ctx.lineTo(x, y);
+            // Create a line of pixels between the points
+            if (prevX !== x || prevY !== y) {
+                // Determine the number of steps needed based on the distance
+                const dx = x - prevX;
+                const dy = y - prevY;
+                const steps = Math.max(Math.abs(dx), Math.abs(dy)) / pixelSize;
+                
+                // Draw each pixel along the line
+                for (let j = 1; j < steps; j++) {
+                    const stepX = Math.floor(prevX + dx * (j / steps));
+                    const stepY = Math.floor(prevY + dy * (j / steps));
+                    // Snap to pixel grid
+                    const pixX = Math.floor(stepX / pixelSize) * pixelSize;
+                    const pixY = Math.floor(stepY / pixelSize) * pixelSize;
+                    
+                    const pixelKey = `${pixX},${pixY}`;
+                    if (!previousPixels.has(pixelKey)) {
+                        ctx.fillRect(pixX, pixY, pixelSize, pixelSize);
+                        previousPixels.add(pixelKey);
+                    }
+                }
+            }
         }
     }
     
-    ctx.stroke();
+    // No area under curve or gradient - cleaner pixelated look
     
-    // Add area under curve with gradient
-    const gradientFill = ctx.createLinearGradient(0, margin.top, 0, height - margin.bottom);
-    gradientFill.addColorStop(0, 'rgba(33, 131, 200, 0.3)');
-    gradientFill.addColorStop(1, 'rgba(33, 131, 200, 0.05)');
-    
-    ctx.beginPath();
-    ctx.fillStyle = gradientFill;
-    
-    // First point
-    let firstPoint = populationData[0];
-    let x = margin.left + ((firstPoint.year - startYear) / (endYear - startYear)) * graphWidth;
-    let y = height - margin.bottom - (firstPoint.population / roundedMaxPop) * graphHeight;
-    ctx.moveTo(x, y);
-    
-    // Connect all points
-    populationData.forEach((d) => {
-        x = margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth;
-        y = height - margin.bottom - (d.population / roundedMaxPop) * graphHeight;
-        ctx.lineTo(x, y);
-    });
-    
-    // Complete the path
-    ctx.lineTo(x, height - margin.bottom);
-    ctx.lineTo(margin.left, height - margin.bottom);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Add data points with pixelated styling
-    const stepSize = Math.max(1, Math.floor(populationData.length / 15));
+    // Only add a few key data points to avoid cluttering the pixelated line
+    const stepSize = Math.max(1, Math.floor(populationData.length / 12));
     for (let i = 0; i < populationData.length; i += stepSize) {
         const d = populationData[i];
         // Use math floor to create pixelated alignment
-        const x = Math.floor((margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth) / 4) * 4;
-        const y = Math.floor((height - margin.bottom - (d.population / roundedMaxPop) * graphHeight) / 4) * 4;
+        const x = Math.floor((margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth) / pixelSize) * pixelSize;
+        const y = Math.floor((height - margin.bottom - (d.population / roundedMaxPop) * graphHeight) / pixelSize) * pixelSize;
         
-        // Draw larger square data points for pixelated aesthetic
-        ctx.beginPath();
+        // Draw pixelated points that are larger than the line pixels
+        const pointSize = pixelSize * 3;
         ctx.fillStyle = '#131e21';
-        ctx.fillRect(x - 4, y - 4, 8, 8);
+        ctx.fillRect(x - pointSize/2, y - pointSize/2, pointSize, pointSize);
         
-        ctx.beginPath();
-        ctx.strokeStyle = '#2183c8';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x - 4, y - 4, 8, 8);
+        ctx.strokeStyle = '#eaffca'; // --yellow-color
+        ctx.lineWidth = pixelSize/2;
+        ctx.strokeRect(x - pointSize/2, y - pointSize/2, pointSize, pointSize);
     }
 }
 
