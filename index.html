@@ -55,8 +55,8 @@
                         <label for="replacementRate">Total Fertility Rate (children per woman)</label>
                         <div class="slider-container">
                             <div class="slider-with-value">
-                                <input type="range" id="replacementSlider" min="0.5" max="5.0" step="0.1" value="2.1">
-                                <span id="replacementValue" class="slider-value">2.1</span>
+                                <input type="range" id="replacementSlider" min="0.5" max="5.0" step="0.1" value="1.6">
+                                <span id="replacementValue" class="slider-value">1.6</span>
                             </div>
                         </div>
                     </div>
@@ -76,9 +76,20 @@
                         <label for="migrationRate">Migration Rate (per 1000)</label>
                         <div class="slider-container">
                             <div class="slider-with-value">
-                                <input type="range" id="migrationSlider" min="-10" max="10" step="0.5" value="0" 
+                                <input type="range" id="migrationSlider" min="-10" max="10" step="0.5" value="4.0" 
                                        oninput="document.getElementById('migrationValue').textContent = parseFloat(this.value).toFixed(1)">
-                                <span id="migrationValue" class="slider-value">0.0</span>
+                                <span id="migrationValue" class="slider-value">4.0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="startPopulation">Starting Population (millions)</label>
+                        <div class="slider-container">
+                            <div class="slider-with-value">
+                                <input type="range" id="startPopulationSlider" min="1" max="8000" step="1" value="7800"
+                                       oninput="document.getElementById('startPopulationValue').textContent = parseFloat(this.value).toFixed(0)">
+                                <span id="startPopulationValue" class="slider-value">7800</span>
                             </div>
                         </div>
                     </div>

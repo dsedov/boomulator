@@ -329,10 +329,12 @@ input[type="range"]::-moz-range-thumb {
 
 .stat-card h3 {
     font-size: 14px;
+    font-weight: normal;
     margin-bottom: 0.5rem;
     letter-spacing: 1px;
     color: var(--primary-color);
     opacity: 0.8;
+
 }
 
 .stat-card p {

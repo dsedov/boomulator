@@ -1,8 +1,8 @@
 // DOM elements
 let canvas, ctx, lifespanSlider, lifespanValue, replacementSlider, replacementValue;
 let childMortalitySlider, childMortalityValue, migrationSlider, migrationValue;
-let endYearSlider, endYearValue, simulateBtn, loadingIndicator;
-let peakPopulationEl, peakYearEl, endPopulationEl, tooltip;
+let startPopulationSlider, startPopulationValue, endYearSlider, endYearValue;
+let simulateBtn, loadingIndicator, peakPopulationEl, peakYearEl, endPopulationEl, tooltip;
 
 // For debouncing slider updates
 let updateTimerId = null;
@@ -13,7 +13,7 @@ let mousePosition = { x: 0, y: 0 };
 
 // Configuration
 const startYear = 2020;
-const startPopulation = 7.8; // billion
+let startPopulation; // Will be set from slider value in millions and converted to billions
 const initialAgeDistribution = {
     // approximate age distribution as of 2020
     '0-9': 0.18,
@@ -39,6 +39,8 @@ function initDomElements() {
     childMortalityValue = document.getElementById('childMortalityValue');
     migrationSlider = document.getElementById('migrationSlider');
     migrationValue = document.getElementById('migrationValue');
+    startPopulationSlider = document.getElementById('startPopulationSlider');
+    startPopulationValue = document.getElementById('startPopulationValue');
     endYearSlider = document.getElementById('endYearSlider');
     endYearValue = document.getElementById('endYearValue');
     simulateBtn = document.getElementById('simulateBtn');
@@ -53,6 +55,7 @@ function initDomElements() {
     replacementValue.textContent = replacementSlider.value;
     childMortalityValue.textContent = parseFloat(childMortalitySlider.value).toFixed(1);
     migrationValue.textContent = parseFloat(migrationSlider.value).toFixed(1);
+    startPopulationValue.textContent = startPopulationSlider.value;
     endYearValue.textContent = endYearSlider.value;
 }
 
@@ -92,6 +95,9 @@ function setupEventListeners() {
             case 'migrationSlider':
                 migrationValue.textContent = parseFloat(this.value).toFixed(1);
                 break;
+            case 'startPopulationSlider':
+                startPopulationValue.textContent = parseFloat(this.value).toFixed(0);
+                break;
             case 'endYearSlider':
                 endYearValue.textContent = this.value;
                 break;
@@ -106,6 +112,7 @@ function setupEventListeners() {
     replacementSlider.addEventListener('input', sliderInputHandler);
     childMortalitySlider.addEventListener('input', sliderInputHandler);
     migrationSlider.addEventListener('input', sliderInputHandler);
+    startPopulationSlider.addEventListener('input', sliderInputHandler);
     endYearSlider.addEventListener('input', sliderInputHandler);
     
     // Keep the button for immediate updates if needed
@@ -122,7 +129,16 @@ function setupEventListeners() {
                 tooltip.style.display = 'block';
                 tooltip.style.left = `${e.clientX + 10}px`;
                 tooltip.style.top = `${e.clientY - 40}px`;
-                tooltip.innerHTML = `<strong>Year ${hoverInfo.year}</strong><br>Population: ${hoverInfo.population.toFixed(2)} billion`;
+                
+                // Format population based on scale
+                let popDisplay;
+                if (startPopulation < 0.1) {  // Less than 100 million
+                    popDisplay = `${(hoverInfo.population * 1000).toFixed(1)} million`;
+                } else {
+                    popDisplay = `${hoverInfo.population.toFixed(2)} billion`;
+                }
+                
+                tooltip.innerHTML = `<strong>Year ${hoverInfo.year}</strong><br>Population: ${popDisplay}`;
             } else {
                 tooltip.style.display = 'none';
             }
@@ -434,7 +450,11 @@ function runSimulation() {
     const fertilityRate = parseFloat(replacementSlider.value);
     const childMortality = parseFloat(childMortalitySlider.value);
     const migrationRate = parseFloat(migrationSlider.value);
+    const initialPopulation = parseFloat(startPopulationSlider.value) / 1000; // Convert millions to billions
     const endYear = parseInt(endYearSlider.value);
+    
+    // Set the global start population value
+    startPopulation = initialPopulation;
     
     // Update the UI to indicate simulation is running
     simulateBtn.textContent = "Updating...";
@@ -476,10 +496,21 @@ function updateStatistics() {
     // Calculate net migration effect (annually per 1000 people)
     const migrationEffect = migrationRate;
     
+    // Update statistics - format based on scale
+    let peakPopText, endPopText;
+    
+    if (startPopulation < 0.1) {  // Less than 100 million
+        peakPopText = `${(peak.population * 1000).toFixed(1)} million`;
+        endPopText = `${(end.population * 1000).toFixed(1)} million`;
+    } else {
+        peakPopText = `${peak.population.toFixed(2)} billion`;
+        endPopText = `${end.population.toFixed(2)} billion`;
+    }
+    
     // Update statistics
-    peakPopulationEl.textContent = `${peak.population.toFixed(2)} billion`;
+    peakPopulationEl.textContent = peakPopText;
     peakYearEl.textContent = peak.year;
-    endPopulationEl.textContent = `${end.population.toFixed(2)} billion`;
+    endPopulationEl.textContent = endPopText;
     effectiveReplacementEl.textContent = effectiveReplacement.toFixed(2);
     
     // Format migration effect with sign
