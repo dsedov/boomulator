@@ -656,7 +656,8 @@ function drawGraph() {
     
     // No axis labels for cleaner console look
     
-    // Create a pixelated line with 2px squares using the yellow color
+    // Create a pixelated line with 2px squares using the appropriate color
+    // Use yellow color by default
     ctx.strokeStyle = '#eaffca'; // --yellow-color
     ctx.fillStyle = '#eaffca'; // --yellow-color
     ctx.lineWidth = 0;
@@ -670,6 +671,13 @@ function drawGraph() {
         // Calculate position and snap to pixelSize grid
         const x = Math.floor((margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth) / pixelSize) * pixelSize;
         const y = Math.floor((height - margin.bottom - (d.population / roundedMaxPop) * graphHeight) / pixelSize) * pixelSize;
+        
+        // Set color based on population value
+        if (d.population <= 0.01) {
+            ctx.fillStyle = '#e14833'; // Use red color when population hits 0.01 billion or below
+        } else {
+            ctx.fillStyle = '#eaffca'; // Default yellow color for positive population
+        }
         
         // Draw the pixel
         const pixelKey = `${x},${y}`;
@@ -699,6 +707,16 @@ function drawGraph() {
                     const pixX = Math.floor(stepX / pixelSize) * pixelSize;
                     const pixY = Math.floor(stepY / pixelSize) * pixelSize;
                     
+                    // Calculate the interpolated population value
+                    const interpolatedPopulation = prev.population + (d.population - prev.population) * (j / steps);
+                    
+                    // Set color based on interpolated population value
+                    if (interpolatedPopulation <= 0.01) {
+                        ctx.fillStyle = '#e14833'; // Use red color when population hits 0.01 billion or below
+                    } else {
+                        ctx.fillStyle = '#eaffca'; // Default yellow color for positive population
+                    }
+                    
                     const pixelKey = `${pixX},${pixY}`;
                     if (!previousPixels.has(pixelKey)) {
                         ctx.fillRect(pixX, pixY, pixelSize, pixelSize);
@@ -724,7 +742,13 @@ function drawGraph() {
         ctx.fillStyle = '#131e21';
         ctx.fillRect(x - pointSize/2, y - pointSize/2, pointSize, pointSize);
         
-        ctx.strokeStyle = '#eaffca'; // --yellow-color
+        // Set stroke color based on population value
+        if (d.population <= 0.01) {
+            ctx.strokeStyle = '#e14833'; // Use red color when population hits 0.01 billion or below
+        } else {
+            ctx.strokeStyle = '#eaffca'; // Default yellow color for positive population
+        }
+        
         ctx.lineWidth = pixelSize/2;
         ctx.strokeRect(x - pointSize/2, y - pointSize/2, pointSize, pointSize);
     }
