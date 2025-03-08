@@ -258,9 +258,46 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
         }
     });
     
+    // Pre-simulate for 20 years to stabilize the model dynamics
+    // This removes the initial transient behavior
+    const preSimulationYears = 20;
+    const preSimulationResults = runSimulationCycle(
+        cohorts.slice(), // Clone the cohorts array
+        preSimulationYears,
+        startYear - preSimulationYears, // Start earlier
+        fertilityRate,
+        infantMortalityRate,
+        migrationRate,
+        lifespan,
+        numCohorts,
+        cohortSize,
+        false // Don't collect results during pre-simulation
+    );
+    
+    // Use the last state from pre-simulation as the starting point
+    cohorts = preSimulationResults.finalCohorts;
+    
+    // Run the actual simulation using our extracted simulation function
+    return runSimulationCycle(
+        cohorts,
+        endYear - startYear,
+        startYear,
+        fertilityRate,
+        infantMortalityRate,
+        migrationRate,
+        lifespan,
+        numCohorts,
+        cohortSize,
+        true // Collect results during actual simulation
+    ).results;
+}
+
+// Extracted simulation logic function that can be reused for pre-simulation and actual simulation
+function runSimulationCycle(initialCohorts, simulationYears, startYear, fertilityRate, infantMortalityRate, 
+                          migrationRate, lifespan, numCohorts, cohortSize, collectResults = true) {
     const results = [];
     const yearStep = 1;
-    const simulationYears = endYear - startYear;
+    let cohorts = [...initialCohorts]; // Create a copy to avoid modifying the original
     
     // Calculate fertility rate distribution based on age
     // This function creates a fertility curve peaking at age 25-30
@@ -369,11 +406,14 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
     // Calculate the effective replacement rate accounting for child mortality
     const effectiveReplacementRate = fertilityRate * (1 - infantMortalityRate);
     
-    // Debug the rates
-    console.log("Fertility Rate:", fertilityRate);
-    console.log("Fertility Distribution:", fertilityDistribution);
-    console.log("Survival Rates:", survivalRates);
-    console.log("Effective Replacement Rate:", effectiveReplacementRate);
+    // Only log debug info during the actual simulation, not pre-simulation
+    if (collectResults) {
+        // Debug the rates
+        console.log("Fertility Rate:", fertilityRate);
+        console.log("Fertility Distribution:", fertilityDistribution);
+        console.log("Survival Rates:", survivalRates);
+        console.log("Effective Replacement Rate:", effectiveReplacementRate);
+    }
     
     // Run simulation year by year
     for (let year = 0; year <= simulationYears; year += yearStep) {
@@ -383,11 +423,14 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
         // Calculate current year fertility rate (could be modified for time-dependent changes)
         const currentFertilityRate = fertilityRate;
         
-        results.push({
-            year: currentYear,
-            population: totalPopulation,
-            effectiveReplacementRate: effectiveReplacementRate
-        });
+        // Only collect results if requested (for the actual simulation, not pre-simulation)
+        if (collectResults) {
+            results.push({
+                year: currentYear,
+                population: totalPopulation,
+                effectiveReplacementRate: effectiveReplacementRate
+            });
+        }
         
         // Calculate births
         let births = 0;
@@ -462,8 +505,8 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
             }
         }
         
-        // Debug info for every 10 years
-        if (year % 10 === 0) {
+        // Debug info for every 10 years (only in actual simulation)
+        if (collectResults && year % 10 === 0) {
             console.log(`Year ${currentYear}:`, {
                 totalPopulation,
                 births,
@@ -476,7 +519,11 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
         cohorts = newCohorts;
     }
     
-    return results;
+    // Return both results and final cohort state
+    return {
+        results: results,
+        finalCohorts: cohorts
+    };
 }
 
 // Main simulation function
