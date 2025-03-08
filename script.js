@@ -1,8 +1,9 @@
 // DOM elements
-let canvas, ctx, lifespanSlider, lifespanValue, replacementSlider, replacementValue;
+let canvas, ctx, worldMapCanvas, worldMapCtx, lifespanSlider, lifespanValue, replacementSlider, replacementValue;
 let childMortalitySlider, childMortalityValue, migrationSlider, migrationValue;
 let startPopulationSlider, startPopulationValue, endYearSlider, endYearValue;
-let simulateBtn, loadingIndicator, peakPopulationEl, peakYearEl, endPopulationEl, tooltip;
+let simulateBtn, loadingIndicator, peakPopulationEl, peakYearEl, endPopulationEl, tooltip, countryTooltip;
+let countries = []; // Will store country data for hover detection
 
 // For debouncing slider updates
 let updateTimerId = null;
@@ -10,6 +11,7 @@ let updateTimerId = null;
 // Current simulation data
 let populationData = [];
 let mousePosition = { x: 0, y: 0 };
+
 
 // Configuration
 const startYear = 2020;
@@ -31,6 +33,9 @@ const initialAgeDistribution = {
 function initDomElements() {
     canvas = document.getElementById('populationGraph');
     ctx = canvas.getContext('2d');
+    worldMapCanvas = document.getElementById('worldMapCanvas');
+    worldMapCtx = worldMapCanvas.getContext('2d');
+    
     lifespanSlider = document.getElementById('lifespanSlider');
     lifespanValue = document.getElementById('lifespanValue');
     replacementSlider = document.getElementById('replacementSlider');
@@ -49,6 +54,7 @@ function initDomElements() {
     peakYearEl = document.getElementById('peakYear');
     endPopulationEl = document.getElementById('endPopulation');
     tooltip = document.getElementById('tooltip');
+    countryTooltip = document.getElementById('countryTooltip');
     
     // Set initial values for sliders
     lifespanValue.textContent = lifespanSlider.value;
@@ -62,12 +68,22 @@ function initDomElements() {
 // Setup canvas for high-resolution
 function setupCanvas() {
     const dpr = window.devicePixelRatio || 1;
+    
+    // Setup population graph canvas
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
+    
+    // Setup world map canvas
+    const mapRect = worldMapCanvas.getBoundingClientRect();
+    worldMapCanvas.width = mapRect.width * dpr;
+    worldMapCanvas.height = mapRect.height * dpr;
+    worldMapCtx.scale(dpr, dpr);
+    worldMapCanvas.style.width = `${mapRect.width}px`;
+    worldMapCanvas.style.height = `${mapRect.height}px`;
 }
 
 // Debounce function to prevent too many simulation runs
@@ -91,6 +107,11 @@ function updateURLWithParameters() {
     params.set('endYear', endYearSlider.value);
     
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+    
+    // Force a redraw of the globe to update flow lines based on new migration value
+    if (globeCtx) {
+        drawGlobe();
+    }
 }
 
 // Event listeners
@@ -258,6 +279,10 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
         }
     });
     
+    // Calculate the total initial population to ensure we start with the correct value
+    const initialTotalPopulation = cohorts.reduce((a, b) => a + b, 0);
+    console.log("Initial population before pre-simulation:", initialTotalPopulation, "billion");
+    
     // Pre-simulate for 20 years to stabilize the model dynamics
     // This removes the initial transient behavior
     const preSimulationYears = 20;
@@ -275,11 +300,26 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
     );
     
     // Use the last state from pre-simulation as the starting point
-    cohorts = preSimulationResults.finalCohorts;
+    let finalCohorts = preSimulationResults.finalCohorts;
     
-    // Run the actual simulation using our extracted simulation function
-    return runSimulationCycle(
-        cohorts,
+    // Calculate post-presimulation total to see if we need to adjust
+    const postPresimTotalPop = finalCohorts.reduce((a, b) => a + b, 0);
+    console.log("Population after pre-simulation:", postPresimTotalPop, "billion");
+    
+    // If there's a significant difference, scale to maintain the desired population
+    if (Math.abs(postPresimTotalPop - startPopulation) > 0.01) {
+        const scaleFactor = startPopulation / postPresimTotalPop;
+        console.log(`Adjusting population with scale factor: ${scaleFactor}`);
+        finalCohorts = finalCohorts.map(cohort => cohort * scaleFactor);
+        
+        // Verify the correction
+        const correctedTotalPop = finalCohorts.reduce((a, b) => a + b, 0);
+        console.log("Corrected population:", correctedTotalPop, "billion");
+    }
+    
+    // Run the actual simulation using our extracted simulation function with corrected cohorts
+    const results = runSimulationCycle(
+        finalCohorts,
         endYear - startYear,
         startYear,
         fertilityRate,
@@ -290,6 +330,13 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
         cohortSize,
         true // Collect results during actual simulation
     ).results;
+    
+    // Ensure the first year's population is exactly the start population
+    if (results.length > 0) {
+        results[0].population = startPopulation;
+    }
+    
+    return results;
 }
 
 // Extracted simulation logic function that can be reused for pre-simulation and actual simulation
@@ -932,6 +979,806 @@ function loadParametersFromURL() {
     }
 }
 
+// Draw a pixelated line or shape
+function drawPixelatedLine(points, pixelSize, ctx, fillShape = false) {
+    if (points.length === 0) return;
+    
+    // Sort points by longitude for filling
+    if (fillShape) {
+        // Group points by pixel rows for filling
+        const rowPoints = {};
+        
+        for (const point of points) {
+            const row = Math.floor(point.y / pixelSize) * pixelSize;
+            if (!rowPoints[row]) {
+                rowPoints[row] = [];
+            }
+            rowPoints[row].push(point);
+        }
+        
+        // Fill each row with pixels
+        for (const row in rowPoints) {
+            const rowPixels = rowPoints[row];
+            if (rowPixels.length >= 2) {
+                // Sort by x coordinate
+                rowPixels.sort((a, b) => a.x - b.x);
+                
+                // For each pair of points, fill the pixels between them
+                for (let i = 0; i < rowPixels.length - 1; i += 2) {
+                    const start = Math.floor(rowPixels[i].x / pixelSize) * pixelSize;
+                    const end = Math.floor(rowPixels[i + 1].x / pixelSize) * pixelSize;
+                    
+                    for (let x = start; x <= end; x += pixelSize) {
+                        ctx.fillRect(x, parseInt(row), pixelSize, pixelSize);
+                    }
+                }
+            }
+        }
+    } else {
+        // Draw individual pixels for lines
+        for (const point of points) {
+            const x = Math.floor(point.x / pixelSize) * pixelSize;
+            const y = Math.floor(point.y / pixelSize) * pixelSize;
+            ctx.fillRect(x, y, pixelSize, pixelSize);
+        }
+    }
+}
+
+// Default fallback country data (minimal version of what was in countries.js)
+const fallbackCountryData = [
+    {
+        name: "United States",
+        region: "northAmerica",
+        polygon: [
+            [-125.0, 48.0], [-125.0, 42.0], [-120.0, 37.0], [-115.0, 32.0], [-108.0, 31.0], 
+            [-97.0, 26.0], [-80.0, 27.0], [-75.0, 37.0], [-77.0, 46.0], [-95.0, 49.0], [-125.0, 48.0]
+        ]
+    },
+    {
+        name: "Canada",
+        region: "northAmerica",
+        polygon: [
+            [-141.0, 70.0], [-123.0, 49.0], [-95.0, 49.0], [-77.0, 46.0], [-53.0, 47.0], 
+            [-53.0, 55.0], [-85.0, 75.0], [-120.0, 70.0], [-141.0, 70.0]
+        ]
+    },
+    {
+        name: "Brazil",
+        region: "southAmerica",
+        polygon: [
+            [-69.5, 0.0], [-58.0, -8.0], [-46.0, -8.0], [-43.0, -22.0], [-48.0, -33.0], 
+            [-57.5, -30.0], [-63.0, -17.0], [-71.0, -4.0], [-69.5, 0.0]
+        ]
+    },
+    {
+        name: "Russia",
+        region: "asia",
+        polygon: [
+            [20.0, 55.0], [30.0, 60.0], [58.0, 70.0], [110.0, 76.0], [180.0, 68.0], 
+            [172.0, 64.0], [142.0, 55.0], [130.0, 43.0], [96.0, 50.0], [60.0, 54.0], 
+            [38.0, 50.0], [24.0, 52.5], [20.0, 55.0]
+        ]
+    },
+    {
+        name: "China",
+        region: "asia",
+        polygon: [
+            [75.0, 40.0], [101.0, 45.0], [126.0, 47.0], [132.0, 43.0], [122.0, 31.0], 
+            [108.0, 21.0], [95.0, 28.0], [80.0, 32.0], [75.0, 40.0]
+        ]
+    },
+    {
+        name: "Australia",
+        region: "oceania",
+        polygon: [
+            [113.0, -12.0], [142.0, -12.0], [153.0, -30.0], [144.0, -40.0], [115.0, -32.0], [113.0, -12.0]
+        ]
+    }
+];
+
+// Load country GeoJSON data and convert it to simplified format for our map
+let geoJSONCountries = [];
+
+function loadGeoJSONCountries() {
+    console.log("Starting to process embedded GeoJSON data...");
+    
+    try {
+        // Use the embedded countriesGeoJSON data that was loaded from countries-data.js
+        const data = countriesGeoJSON;
+        
+        // Log the structure of the data
+        console.log("GeoJSON data structure:", 
+                    Object.keys(data),
+                    data.type,
+                    data.features ? `Features count: ${data.features.length}` : "No features found");
+        
+        if (!data.features || !data.features.length) {
+            throw new Error("Invalid GeoJSON data: No features found");
+        }
+        
+        // Convert features to our simplified format
+        const processedCountries = data.features.map((feature, index) => {
+            try {
+                // Get country name and properties
+                const name = feature.properties.NAME || 
+                            feature.properties.name || 
+                            feature.properties.ADMIN || 
+                            feature.properties.SOVEREIGNT || // This exists in the Natural Earth data
+                            `Country ${index}`;
+                
+                // Skip Antarctica
+                if (name === "Antarctica" || 
+                    feature.properties.NAME === "Antarctica" || 
+                    feature.properties.ADMIN === "Antarctica" ||
+                    feature.properties.continent === "Antarctica" ||
+                    feature.properties.CONTINENT === "Antarctica") {
+                    return null;
+                }
+                
+                // Get country ISO code for population API
+                const isoCode = feature.properties.ISO_A3 || 
+                               feature.properties.ISO_A2 || 
+                               feature.properties.ADM0_A3;
+                
+                // Determine region from continent/region properties
+                let region;
+                
+                // Specific handling for Natural Earth data which has CONTINENT property
+                if (feature.properties.CONTINENT) {
+                    switch(feature.properties.CONTINENT) {
+                        case 'North America': region = 'northAmerica'; break;
+                        case 'South America': region = 'southAmerica'; break;
+                        case 'Europe': region = 'europe'; break;
+                        case 'Africa': region = 'africa'; break;
+                        case 'Asia': region = 'asia'; break;
+                        case 'Oceania': case 'Australia': region = 'oceania'; break;
+                        default: region = 'asia'; // Default fallback
+                    }
+                } 
+                // Otherwise try to determine from region codes
+                else if (feature.properties.ISO_A2 || feature.properties.ISO_A3) {
+                    region = inferRegionFromProperties(feature.properties);
+                }
+                // Ultimate fallback
+                else {
+                    // Assign a region based on feature index to distribute colors evenly
+                    const regions = ['northAmerica', 'southAmerica', 'europe', 'africa', 'asia', 'oceania'];
+                    region = regions[index % regions.length];
+                }
+                
+                // Simplify geometry - handle both Polygon and MultiPolygon
+                let polygon = [];
+                
+                if (feature.geometry.type === 'Polygon') {
+                    // Take the first (outer) ring of the polygon and simplify it
+                    polygon = simplifyPolygon(feature.geometry.coordinates[0]);
+                } 
+                else if (feature.geometry.type === 'MultiPolygon') {
+                    // Take the largest polygon from the multi-polygon
+                    let largestPolygon = feature.geometry.coordinates[0][0];
+                    let largestArea = calculatePolygonArea(largestPolygon);
+                    
+                    for (let i = 0; i < feature.geometry.coordinates.length; i++) {
+                        const currentPolygon = feature.geometry.coordinates[i][0];
+                        const currentArea = calculatePolygonArea(currentPolygon);
+                        
+                        if (currentArea > largestArea) {
+                            largestPolygon = currentPolygon;
+                            largestArea = currentArea;
+                        }
+                    }
+                    
+                    polygon = simplifyPolygon(largestPolygon);
+                }
+                
+                // Add the original population if available
+                const population = feature.properties.POP_EST || null;
+                
+                return {
+                    name: name,
+                    region: region,
+                    polygon: polygon,
+                    isoCode: isoCode,
+                    population: population
+                };
+            } catch (err) {
+                console.error(`Error processing feature ${index}:`, err);
+                return null;
+            }
+        }).filter(country => country !== null);
+        
+        console.log("Successfully processed countries:", processedCountries.length);
+        geoJSONCountries = processedCountries;
+        return processedCountries; // Direct return, no Promise, since we're using sync processing
+    } catch (error) {
+        console.error("Error processing GeoJSON:", error);
+        // Fallback to predefined country data
+        console.log("Falling back to predefined country data");
+        return fallbackCountryData; // Direct return, no Promise
+    }
+}
+
+// Helper function to determine continent from properties when CONTINENT is missing
+function determineContinent(properties) {
+    // Use REGION_UN or SUBREGION if available
+    if (properties.REGION_UN) {
+        if (properties.REGION_UN === "Americas") {
+            return properties.SUBREGION?.includes("South") ? "South America" : "North America";
+        }
+        return properties.REGION_UN;
+    }
+    
+    // Try to infer continent from region or subregion
+    if (properties.SUBREGION) {
+        if (properties.SUBREGION.includes("Europe")) return "Europe";
+        if (properties.SUBREGION.includes("Africa")) return "Africa";
+        if (properties.SUBREGION.includes("Asia")) return "Asia";
+        if (properties.SUBREGION.includes("America")) {
+            return properties.SUBREGION.includes("South") ? "South America" : "North America";
+        }
+        if (properties.SUBREGION.includes("Australia") || properties.SUBREGION.includes("Oceania")) {
+            return "Oceania";
+        }
+    }
+    
+    return "Unknown";
+}
+
+// Helper function to infer region from other properties
+function inferRegionFromProperties(properties) {
+    // Default fallback is to use 'asia' if we can't determine
+    let region = 'asia';
+    
+    // Check common country code patterns
+    if (properties.ISO_A2 || properties.ISO_A3) {
+        const code = (properties.ISO_A2 || properties.ISO_A3).toUpperCase();
+        
+        // North American country codes
+        if (['US', 'CA', 'MX', 'USA', 'CAN', 'MEX', 'GTM', 'BLZ', 'SLV', 'HND', 'NIC', 'CRI', 'PAN'].includes(code)) {
+            region = 'northAmerica';
+        }
+        // South American country codes
+        else if (['BR', 'AR', 'CO', 'PE', 'VE', 'CHL', 'ECU', 'BOL', 'PRY', 'URY', 'GUY', 'SUR', 'BRA', 'ARG', 'COL'].includes(code)) {
+            region = 'southAmerica';
+        }
+        // European country codes
+        else if (['GB', 'FR', 'DE', 'IT', 'ES', 'PL', 'RO', 'NL', 'BE', 'GR', 'CZ', 'PT', 'SE', 'HU', 'AT', 'CH', 'BG', 'DK', 'FI', 'SK', 'IE', 'HR', 'NO', 'LT', 'SI', 'LV', 'EE', 'CY', 'MT', 'LU', 'IS', 'GBR', 'FRA', 'DEU'].includes(code)) {
+            region = 'europe';
+        }
+        // African country codes
+        else if (['NG', 'EG', 'ZA', 'DZ', 'SD', 'MA', 'AO', 'ET', 'TZ', 'KE', 'UG', 'GH', 'MZ', 'ZW', 'ZMB', 'CMR', 'NGA', 'EGY', 'ZAF'].includes(code)) {
+            region = 'africa';
+        }
+        // Oceania country codes
+        else if (['AU', 'NZ', 'PG', 'FJ', 'SB', 'VU', 'WS', 'TO', 'FM', 'PW', 'MH', 'NR', 'TV', 'AUS', 'NZL', 'PNG'].includes(code)) {
+            region = 'oceania';
+        }
+    }
+    
+    return region;
+}
+
+// Calculate approximate area of a polygon for finding the largest part of a MultiPolygon
+function calculatePolygonArea(points) {
+    let area = 0;
+    for (let i = 0; i < points.length - 1; i++) {
+        area += points[i][0] * points[i+1][1] - points[i+1][0] * points[i][1];
+    }
+    return Math.abs(area / 2);
+}
+
+// Simplify a polygon by reducing the number of points
+function simplifyPolygon(points, maxPoints = 50) {
+    // If the polygon is already small enough, return as is
+    if (points.length <= maxPoints) {
+        return points.map(point => [point[0], point[1]]);
+    }
+    
+    // Calculate how many points to keep
+    const factor = Math.max(1, Math.floor(points.length / maxPoints));
+    
+    // Create a new array with fewer points
+    const simplified = [];
+    for (let i = 0; i < points.length; i += factor) {
+        // Convert GeoJSON [lon, lat] to our format
+        simplified.push([points[i][0], points[i][1]]);
+    }
+    
+    // Make sure we close the polygon properly by adding the first point at the end
+    if (simplified.length > 0 && 
+        (simplified[0][0] !== simplified[simplified.length - 1][0] || 
+         simplified[0][1] !== simplified[simplified.length - 1][1])) {
+        simplified.push([simplified[0][0], simplified[0][1]]);
+    }
+    
+    // Ensure we have enough points for a proper polygon even after simplification
+    if (simplified.length < 3) {
+        // If we simplified too much, use more points
+        return simplifyPolygon(points, maxPoints * 2);
+    }
+    
+    return simplified;
+}
+
+// Initialize and draw the interactive world map
+function initWorldMap() {
+    // Setup the canvas for the world map
+    setupCanvas();
+    
+    console.log("Initializing world map");
+    
+    // Create debugging information in the console
+    console.log(`%c BOOMULATOR WORLD MAP %c Loading GeoJSON countries... `, 
+                'background: #7dfdf9; color: #131e21; font-weight: bold;', 
+                'background: #131e21; color: #7dfdf9;');
+    
+    // Show loading message on canvas
+    if (worldMapCtx) {
+        const width = worldMapCanvas.width / (window.devicePixelRatio || 1);
+        const height = worldMapCanvas.height / (window.devicePixelRatio || 1);
+        
+        worldMapCtx.clearRect(0, 0, width, height);
+        worldMapCtx.fillStyle = '#131e21';
+        worldMapCtx.fillRect(0, 0, width, height);
+        worldMapCtx.fillStyle = '#7dfdf9';
+        worldMapCtx.font = '14px "Tiny5", monospace';
+        worldMapCtx.textAlign = 'center';
+        worldMapCtx.fillText('LOADING WORLD MAP...', width/2, height/2);
+    }
+    
+    // We know we have embedded GeoJSON data, so process it immediately
+    geoJSONCountries = []; // Reset in case of reinitialization
+    
+    // Process the country data
+    try {
+        // First attempt to draw with embedded data (synchronously)
+        const countryData = loadGeoJSONCountries();
+        
+        // Log success
+        console.log(`%c SUCCESS! %c Loaded ${countryData.length} countries `, 
+                    'background: #5ae7b3; color: #131e21; font-weight: bold;', 
+                    'background: #131e21; color: #5ae7b3;');
+        
+        // Draw the map without waiting for async operations
+        drawWorldMap();
+        
+        // Setup mouse interaction for country highlighting
+        setupWorldMapInteraction();
+        
+    } catch (err) {
+        console.error(`%c ERROR! %c Failed to initialize world map: ${err.message}`, 
+                      'background: #e14833; color: white; font-weight: bold;', 
+                      'background: #131e21; color: #e14833;');
+        
+        // Try to draw with fallback data
+        console.warn("Using fallback data for map");
+        geoJSONCountries = []; // Ensure we use fallback
+        drawWorldMap();
+        setupWorldMapInteraction();
+    }
+}
+
+// Draw the pixelated world map with countries
+function drawWorldMap(highlightedCountry = null) {
+    if (!worldMapCtx) return;
+    
+    // Get canvas dimensions
+    const width = worldMapCanvas.width / (window.devicePixelRatio || 1);
+    const height = worldMapCanvas.height / (window.devicePixelRatio || 1);
+    
+    // Clear the canvas
+    worldMapCtx.clearRect(0, 0, width, height);
+    
+    // Background color
+    worldMapCtx.fillStyle = '#131e21';
+    worldMapCtx.fillRect(0, 0, width, height);
+    
+    // Define pixel size for pixelated look - even smaller for detailed country borders
+    const pixelSize = 1.5;
+    
+    // Map scale and position - use more of the available space and shift left
+    const mapWidth = width * 0.95;  // Increased from 0.9 to 0.95
+    const mapHeight = height * 0.95; // Increased from 0.9 to 0.95
+    // Shift the map to the left by 10% of its width
+    const mapX = (width - mapWidth) / 2 - (width * 0.1); 
+    const mapY = (height - mapHeight) / 2;
+    
+    // Choose which country data to use (GeoJSON or fallback)
+    const dataToUse = geoJSONCountries.length > 0 ? geoJSONCountries : fallbackCountryData;
+    
+    // Import country data
+    countries = dataToUse.map(country => {
+        // Convert country coordinates to pixel coordinates
+        const pixelPoints = country.polygon.map(([lon, lat]) => ({
+            x: mapX + (lon + 180) / 360 * mapWidth,
+            y: mapY + (90 - lat) / 180 * mapHeight
+        }));
+        
+        // Calculate country bounding box for hit detection
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        pixelPoints.forEach(p => {
+            minX = Math.min(minX, p.x);
+            minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x);
+            maxY = Math.max(maxY, p.y);
+        });
+        
+        // Store pixel coordinates and bounding box for interaction
+        return {
+            ...country,
+            pixelPoints: pixelPoints,
+            bounds: {minX, minY, maxX, maxY}
+        };
+    });
+    
+    // Region colors in terminal style
+    const regionColors = {
+        northAmerica: '#5ae7b3', // Green
+        southAmerica: '#7dfdf9', // Cyan
+        europe: '#eaffca',       // Yellow
+        africa: '#e14833',       // Red
+        asia: '#a0a9fe',         // Lavender
+        oceania: '#f97e72'       // Salmon
+    };
+    
+    // Draw each country
+    countries.forEach(country => {
+        if (highlightedCountry && highlightedCountry.name === country.name) {
+            // Fill highlighted country
+            worldMapCtx.fillStyle = '#ff3333';
+            drawPixelatedPolygonFill(country.pixelPoints, pixelSize, worldMapCtx);
+        } else {
+            // Draw outline only for non-highlighted countries
+            worldMapCtx.fillStyle = regionColors[country.region];
+            drawPixelatedPolygonOutline(country.pixelPoints, pixelSize, worldMapCtx);
+        }
+    });
+}
+
+// Draw a pixelated polygon outline
+function drawPixelatedPolygonOutline(points, pixelSize, ctx) {
+    if (points.length < 3) return;
+    
+    // Draw each edge of the polygon with pixelated line segments
+    for (let i = 0; i < points.length; i++) {
+        const p1 = points[i];
+        const p2 = points[(i + 1) % points.length]; // Wrap around to close the polygon
+        
+        // Draw a pixelated line between p1 and p2
+        drawPixelatedMapLine(p1, p2, pixelSize, ctx);
+    }
+}
+
+// Draw a pixelated line between two points for map
+function drawPixelatedMapLine(p1, p2, pixelSize, ctx) {
+    // Bresenham's line algorithm adapted for pixelated rendering
+    let x1 = Math.floor(p1.x / pixelSize) * pixelSize;
+    let y1 = Math.floor(p1.y / pixelSize) * pixelSize;
+    let x2 = Math.floor(p2.x / pixelSize) * pixelSize;
+    let y2 = Math.floor(p2.y / pixelSize) * pixelSize;
+    
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    const sx = x1 < x2 ? pixelSize : -pixelSize;
+    const sy = y1 < y2 ? pixelSize : -pixelSize;
+    let err = dx - dy;
+    
+    while (true) {
+        // Draw pixel at current position
+        ctx.fillRect(x1, y1, pixelSize, pixelSize);
+        
+        // Break if we've reached the end point
+        if (x1 === x2 && y1 === y2) break;
+        
+        // Calculate next position
+        let e2 = 2 * err;
+        if (e2 > -dy) {
+            err -= dy;
+            x1 += sx;
+        }
+        if (e2 < dx) {
+            err += dx;
+            y1 += sy;
+        }
+    }
+}
+
+// Fill a shape with pixelated style (for highlighting)
+function drawPixelatedPolygonFill(points, pixelSize, ctx) {
+    if (points.length < 3) return;
+    
+    // Find bounds of the shape
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    points.forEach(p => {
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x);
+        maxY = Math.max(maxY, p.y);
+    });
+    
+    // Snap to pixel grid
+    minX = Math.floor(minX / pixelSize) * pixelSize;
+    minY = Math.floor(minY / pixelSize) * pixelSize;
+    maxX = Math.ceil(maxX / pixelSize) * pixelSize;
+    maxY = Math.ceil(maxY / pixelSize) * pixelSize;
+    
+    // Pixelated fill algorithm - check each pixel in bounding box
+    for (let y = minY; y <= maxY; y += pixelSize) {
+        for (let x = minX; x <= maxX; x += pixelSize) {
+            // Check if center of pixel is inside the polygon
+            if (isPointInPolygon(x + pixelSize/2, y + pixelSize/2, points)) {
+                ctx.fillRect(x, y, pixelSize, pixelSize);
+            }
+        }
+    }
+}
+
+// Check if a point is inside a polygon using ray casting algorithm
+function isPointInPolygon(x, y, polygon) {
+    let inside = false;
+    for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        
+        const intersect = ((yi > y) !== (yj > y)) && 
+            (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+// Highlight a country in red
+function highlightCountry(country) {
+    if (!worldMapCtx || !country) return;
+    
+    // Redraw the map with the current country highlighted
+    drawWorldMap(country);
+    
+    // Show country tooltip with enhanced information
+    if (countryTooltip) {
+        // Get region color class
+        const regionClass = country.region.toLowerCase().replace(/\s+/g, '-');
+        
+        // Format population if available
+        let populationInfo = '';
+        if (country.population) {
+            // Format population with commas (e.g., 1,234,567)
+            const formattedPopulation = country.population.toLocaleString();
+            populationInfo = `<div class="tooltip-population">Population: ${formattedPopulation}</div>`;
+        }
+        
+        // Create tooltip content with region color indicator and population
+        countryTooltip.innerHTML = `
+            <div class="tooltip-header">
+                <span class="tooltip-color ${regionClass}"></span>
+                <span class="tooltip-name">${country.name}</span>
+            </div>
+            <div class="tooltip-region">${country.region}</div>
+            ${populationInfo}
+            <div class="tooltip-hint">Click to use population</div>
+        `;
+        countryTooltip.style.display = 'block';
+    }
+}
+
+// Function to load population data from RestCountries API
+function fetchCountryPopulation(country) {
+    // If we already have population data from the GeoJSON
+    if (country.population) {
+        console.log(`Using GeoJSON population data for ${country.name}: ${country.population}`);
+        updateStartPopulation(country.population);
+        // Force tooltip to update with population data
+        highlightCountry(country);
+        return;
+    }
+    
+    // Otherwise use the RestCountries API
+    if (!country.isoCode) {
+        console.warn(`No ISO code available for ${country.name}, can't fetch population data`);
+        return;
+    }
+    
+    // Show loading indicator in tooltip
+    if (countryTooltip) {
+        countryTooltip.innerHTML += `<div class="tooltip-loading">Loading population data...</div>`;
+    }
+    
+    // Determine which API to use based on ISO code format
+    let apiUrl;
+    if (country.isoCode.length === 2) {
+        apiUrl = `https://restcountries.com/v3.1/alpha/${country.isoCode}`;
+    } else if (country.isoCode.length === 3) {
+        apiUrl = `https://restcountries.com/v3.1/alpha/${country.isoCode}`;
+    } else {
+        apiUrl = `https://restcountries.com/v3.1/name/${encodeURIComponent(country.name)}`;
+    }
+    
+    console.log(`Fetching population data for ${country.name} from ${apiUrl}`);
+    
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // API returns array for some endpoints
+            const countryData = Array.isArray(data) ? data[0] : data;
+            
+            if (countryData && countryData.population) {
+                const population = countryData.population;
+                console.log(`Population of ${country.name}: ${population}`);
+                
+                // Store population in country data for future use
+                country.population = population;
+                
+                // Update the start population slider
+                updateStartPopulation(population);
+                
+                // Force tooltip to update with population data
+                highlightCountry(country);
+            } else {
+                console.warn(`No population data found for ${country.name}`);
+                tryWorldBankAPI(country);
+            }
+        })
+        .catch(error => {
+            console.error(`Error fetching population for ${country.name}:`, error);
+            tryWorldBankAPI(country);
+        });
+}
+
+// Separate function for the WorldBank API fallback
+function tryWorldBankAPI(country) {
+    if (!country.isoCode || country.isoCode.length !== 3) {
+        console.warn("Can't use WorldBank API without a valid ISO-3 code");
+        return;
+    }
+    
+    const fallbackUrl = `https://api.worldbank.org/v2/country/${country.isoCode}?format=json`;
+    console.log(`Trying fallback WorldBank API: ${fallbackUrl}`);
+    
+    // Update tooltip to show we're trying a fallback API
+    if (countryTooltip) {
+        const loadingEl = countryTooltip.querySelector('.tooltip-loading');
+        if (loadingEl) {
+            loadingEl.textContent = 'Trying alternate data source...';
+        }
+    }
+    
+    fetch(fallbackUrl)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data[1] && data[1][0] && data[1][0].population) {
+                const population = data[1][0].population;
+                console.log(`Population of ${country.name} from WorldBank: ${population}`);
+                country.population = population;
+                updateStartPopulation(population);
+                
+                // Force tooltip to update with population data
+                highlightCountry(country);
+            } else {
+                console.warn("Failed to find population data from WorldBank API");
+                // Update tooltip to show failure
+                highlightCountry(country); // Refresh tooltip
+            }
+        })
+        .catch(err => {
+            console.error('WorldBank API fallback failed:', err);
+            highlightCountry(country); // Refresh tooltip
+        });
+}
+
+// Function to update the starting population value
+function updateStartPopulation(population) {
+    // Convert population to millions for the slider
+    const popInMillions = Math.round(population / 1000000);
+    
+    // Update slider if population is within its range
+    if (popInMillions >= startPopulationSlider.min && popInMillions <= startPopulationSlider.max) {
+        startPopulationSlider.value = popInMillions;
+        startPopulationValue.textContent = popInMillions;
+        
+        // Show a notification that population was updated
+        const notification = document.createElement('div');
+        notification.className = 'population-notification';
+        notification.textContent = `Population set to ${popInMillions} million`;
+        document.body.appendChild(notification);
+        
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.classList.add('fadeout');
+            setTimeout(() => notification.remove(), 1000);
+        }, 2000);
+        
+        // Run the simulation with updated population
+        debounceUpdate(runSimulation);
+    } else {
+        console.warn(`Population ${popInMillions} million is outside slider range (${startPopulationSlider.min}-${startPopulationSlider.max})`);
+    }
+}
+
+// Setup mouse interaction for the world map
+function setupWorldMapInteraction() {
+    let currentHoveredCountry = null;
+    
+    worldMapCanvas.addEventListener('mousemove', function(e) {
+        const rect = worldMapCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Position the tooltip directly at the mouse position
+        if (countryTooltip) {
+            countryTooltip.style.left = `${e.clientX}px`;
+            countryTooltip.style.top = `${e.clientY}px`;
+        }
+        
+        // Check if mouse is over any country
+        let hoveredCountry = null;
+        
+        // First do a quick bounding box check for efficiency
+        for (const country of countries) {
+            if (country.bounds) {
+                const { minX, minY, maxX, maxY } = country.bounds;
+                if (mouseX >= minX && mouseX <= maxX && mouseY >= minY && mouseY <= maxY) {
+                    // Then do precise polygon check
+                    if (isPointInPolygon(mouseX, mouseY, country.pixelPoints)) {
+                        hoveredCountry = country;
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Only redraw if the hovered country changed
+        if (hoveredCountry !== currentHoveredCountry) {
+            if (hoveredCountry) {
+                highlightCountry(hoveredCountry);
+            } else {
+                // No country hovered, redraw the map and hide tooltip
+                drawWorldMap();
+                if (countryTooltip) {
+                    countryTooltip.style.display = 'none';
+                }
+            }
+            currentHoveredCountry = hoveredCountry;
+        }
+    });
+    
+    // Add click event for selecting country's population
+    worldMapCanvas.addEventListener('click', function(e) {
+        const rect = worldMapCanvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
+        // Check if click is on any country
+        for (const country of countries) {
+            if (country.bounds) {
+                const { minX, minY, maxX, maxY } = country.bounds;
+                if (mouseX >= minX && mouseX <= maxX && mouseY >= minY && mouseY <= maxY) {
+                    // Then do precise polygon check
+                    if (isPointInPolygon(mouseX, mouseY, country.pixelPoints)) {
+                        // Country clicked - fetch population data
+                        fetchCountryPopulation(country);
+                        break;
+                    }
+                }
+            }
+        }
+    });
+    
+    worldMapCanvas.addEventListener('mouseleave', function() {
+        // Mouse left the canvas, redraw the map without highlight
+        drawWorldMap();
+        if (countryTooltip) {
+            countryTooltip.style.display = 'none';
+        }
+        currentHoveredCountry = null;
+    });
+}
+
 // Initialize application
 function init() {
     initDomElements();
@@ -939,7 +1786,19 @@ function init() {
     setupEventListeners();
     runSimulation();
     initPixelationFilter();
+    initWorldMap();
 }
 
 // Run initialization when document is loaded
 window.addEventListener('load', init);
+
+// Force redraw of map after a short delay to ensure it's visible
+window.addEventListener('load', function() {
+    // Redraw map after a short delay to ensure it's properly initialized
+    setTimeout(function() {
+        if (worldMapCtx) {
+            console.log("Forcing map redraw to ensure visibility");
+            drawWorldMap();
+        }
+    }, 500);
+});

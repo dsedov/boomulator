@@ -32,6 +32,21 @@
         
         <main>
             <div class="card">
+                <div class="map-container">
+                    <!-- Map titles removed -->
+                    <!-- Map legend moved to the bottom left -->
+                    <div class="map-legend">
+                        <div class="legend-item"><span class="legend-color north-america"></span> North America</div>
+                        <div class="legend-item"><span class="legend-color south-america"></span> South America</div>
+                        <div class="legend-item"><span class="legend-color europe"></span> Europe</div>
+                        <div class="legend-item"><span class="legend-color africa"></span> Africa</div>
+                        <div class="legend-item"><span class="legend-color asia"></span> Asia</div>
+                        <div class="legend-item"><span class="legend-color oceania"></span> Oceania</div>
+                    </div>
+                    <canvas id="worldMapCanvas"></canvas>
+                    <div id="countryTooltip" class="country-tooltip"></div>
+                </div>
+                
                 <div class="graph-container">
                     <div id="loadingIndicator" class="loading">Processing data...</div>
                     <div class="graph">
@@ -142,6 +157,7 @@
         </footer>
     </div>
     
+    <script src="countries-data.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
