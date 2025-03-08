@@ -518,11 +518,11 @@ function updateStatistics() {
     
     // Format migration effect with sign
     if (migrationRate > 0) {
-        migrationEffectEl.textContent = `+${migrationRate.toFixed(1)}‰`;
+        migrationEffectEl.textContent = `+${migrationRate.toFixed(1)}%`;
     } else if (migrationRate < 0) {
-        migrationEffectEl.textContent = `${migrationRate.toFixed(1)}‰`;
+        migrationEffectEl.textContent = `${migrationRate.toFixed(1)}%`;
     } else {
-        migrationEffectEl.textContent = `0.0‰`;
+        migrationEffectEl.textContent = `0.0%`;
     }
     
     // Color code the effective replacement based on whether it's above or below 2.1
