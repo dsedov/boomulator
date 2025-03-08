@@ -208,10 +208,35 @@ function setupEventListeners() {
         tooltip.style.display = 'none';
     });
     
-    window.addEventListener('resize', () => {
+    // Add debouncing for resize to avoid excessive redraws
+    let resizeTimeout;
+    const resizeHandler = () => {
+        // Reset canvas dimensions and redraw
+        setupCanvas();
+        
+        // Draw graph if we have data
         if (populationData.length > 0) {
             drawGraph();
         }
+        
+        // Always redraw the map
+        drawWorldMap();
+    };
+    
+    // Handle resize events
+    window.addEventListener('resize', () => {
+        // Clear previous timeout
+        if (resizeTimeout) {
+            clearTimeout(resizeTimeout);
+        }
+        
+        // Redraw immediately during resize
+        resizeHandler();
+        
+        // Set a timeout to handle the final state after resize ends
+        resizeTimeout = setTimeout(() => {
+            resizeHandler();
+        }, 100);
     });
 }
 
@@ -1358,6 +1383,9 @@ function initWorldMap() {
     }
 }
 
+// Define the standard world map aspect ratio (width:height)
+const MAP_ASPECT_RATIO = 2.1; // Approximate aspect ratio of a mercator world map
+
 // Draw the pixelated world map with countries
 function drawWorldMap(highlightedCountry = null) {
     if (!worldMapCtx) return;
@@ -1376,11 +1404,21 @@ function drawWorldMap(highlightedCountry = null) {
     // Define pixel size for pixelated look - even smaller for detailed country borders
     const pixelSize = 1.5;
     
-    // Map scale and position - use more of the available space and shift left
-    const mapWidth = width * 0.95;  // Increased from 0.9 to 0.95
-    const mapHeight = height * 0.95; // Increased from 0.9 to 0.95
-    // Shift the map to the left by 10% of its width
-    const mapX = (width - mapWidth) / 2 - (width * 0.1); 
+    // Calculate map dimensions to maintain aspect ratio
+    let mapWidth, mapHeight;
+    
+    if (width / height > MAP_ASPECT_RATIO) {
+        // Container is wider than the map aspect ratio, so constrain by height
+        mapHeight = height * 0.95;
+        mapWidth = mapHeight * MAP_ASPECT_RATIO;
+    } else {
+        // Container is taller than the map aspect ratio, so constrain by width
+        mapWidth = width * 0.95;
+        mapHeight = mapWidth / MAP_ASPECT_RATIO;
+    }
+    
+    // Shift the map to the left by 10% of the container width
+    const mapX = (width - mapWidth) / 2 - (width * 0.1);
     const mapY = (height - mapHeight) / 2;
     
     // Choose which country data to use (GeoJSON or fallback)

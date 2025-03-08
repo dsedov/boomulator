@@ -149,12 +149,16 @@ main {
 
 .map-container {
     width: 100%;
-    height: 800px;
+    height: 60vh; /* Use viewport-relative height for better responsiveness */
+    min-height: 400px; /* Ensure a minimum usable height */
+    max-height: 800px; /* Cap the maximum height */
     position: relative;
     margin: 20px 0 20px 0;
     border: 2px solid var(--border-color);
     background-color: transparent;
     overflow: hidden;
+    /* Improve the resize behavior */
+    transition: height 0.1s ease-out;
 }
 
 /* Map title and subtitle hidden
