@@ -573,8 +573,9 @@ function drawGraph() {
     
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.font = '14px "Share Tech Mono", monospace';
+    ctx.font = '14px "Tiny5", monospace';
     ctx.fillStyle = '#7dfdf9';
+    ctx.textTransform = 'uppercase';
     
     for (let i = 0; i <= yTickCount; i++) {
         const yValue = i * yTickStep;
@@ -631,21 +632,31 @@ function drawGraph() {
     
     // No axis labels for cleaner console look
     
-    // Draw the data line with blue color
+    // Draw the data line with blue color - using stepped line for pixelated effect
     ctx.beginPath();
     ctx.strokeStyle = '#2183c8';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     
-    populationData.forEach((d, i) => {
-        const x = margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth;
-        const y = height - margin.bottom - (d.population / roundedMaxPop) * graphHeight;
+    // Draw stepped lines for a more pixelated look
+    const pixelStep = Math.max(1, Math.floor(populationData.length / 50));
+    
+    for (let i = 0; i < populationData.length; i += pixelStep) {
+        const d = populationData[i];
+        const x = Math.floor((margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth) / 4) * 4;
+        const y = Math.floor((height - margin.bottom - (d.population / roundedMaxPop) * graphHeight) / 4) * 4;
         
         if (i === 0) {
             ctx.moveTo(x, y);
         } else {
+            // Use horizontal then vertical lines for a stepped effect
+            const prev = populationData[Math.max(0, i - pixelStep)];
+            const prevX = Math.floor((margin.left + ((prev.year - startYear) / (endYear - startYear)) * graphWidth) / 4) * 4;
+            const prevY = Math.floor((height - margin.bottom - (prev.population / roundedMaxPop) * graphHeight) / 4) * 4;
+            
+            ctx.lineTo(x, prevY);
             ctx.lineTo(x, y);
         }
-    });
+    }
     
     ctx.stroke();
     
@@ -676,23 +687,85 @@ function drawGraph() {
     ctx.closePath();
     ctx.fill();
     
-    // Add data points with terminal styling
-    const stepSize = Math.max(1, Math.floor(populationData.length / 20));
+    // Add data points with pixelated styling
+    const stepSize = Math.max(1, Math.floor(populationData.length / 15));
     for (let i = 0; i < populationData.length; i += stepSize) {
         const d = populationData[i];
-        const x = margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth;
-        const y = height - margin.bottom - (d.population / roundedMaxPop) * graphHeight;
+        // Use math floor to create pixelated alignment
+        const x = Math.floor((margin.left + ((d.year - startYear) / (endYear - startYear)) * graphWidth) / 4) * 4;
+        const y = Math.floor((height - margin.bottom - (d.population / roundedMaxPop) * graphHeight) / 4) * 4;
         
-        // Draw square data points for terminal aesthetic
+        // Draw larger square data points for pixelated aesthetic
         ctx.beginPath();
         ctx.fillStyle = '#131e21';
-        ctx.fillRect(x - 3, y - 3, 6, 6);
+        ctx.fillRect(x - 4, y - 4, 8, 8);
         
         ctx.beginPath();
         ctx.strokeStyle = '#2183c8';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x - 3, y - 3, 6, 6);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - 4, y - 4, 8, 8);
     }
+}
+
+// Initialize pixelation filter
+function initPixelationFilter() {
+    const filterCanvas = document.getElementById('pixelation-filter');
+    const filterCtx = filterCanvas.getContext('2d');
+    const pixelSize = 2; // Size of each "pixel" in the filter
+    
+    function setupFilterCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = filterCanvas.getBoundingClientRect();
+        filterCanvas.width = rect.width * dpr;
+        filterCanvas.height = rect.height * dpr;
+        filterCtx.scale(dpr, dpr);
+        filterCanvas.style.width = `${rect.width}px`;
+        filterCanvas.style.height = `${rect.height}px`;
+    }
+    
+    function drawPixelationGrid() {
+        setupFilterCanvas();
+        const width = filterCanvas.width;
+        const height = filterCanvas.height;
+        
+        filterCtx.clearRect(0, 0, width, height);
+        
+        // Draw semi-transparent pixel grid
+        filterCtx.strokeStyle = 'rgba(0, 0, 0, 0.05)';
+        filterCtx.lineWidth = 1;
+        
+        // Draw vertical lines
+        for (let x = 0; x < width; x += pixelSize) {
+            filterCtx.beginPath();
+            filterCtx.moveTo(x, 0);
+            filterCtx.lineTo(x, height);
+            filterCtx.stroke();
+        }
+        
+        // Draw horizontal lines
+        for (let y = 0; y < height; y += pixelSize) {
+            filterCtx.beginPath();
+            filterCtx.moveTo(0, y);
+            filterCtx.lineTo(width, y);
+            filterCtx.stroke();
+        }
+        
+        // Add noise to some pixels for CRT effect
+        filterCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        for (let x = 0; x < width; x += pixelSize * 2) {
+            for (let y = 0; y < height; y += pixelSize * 2) {
+                if (Math.random() > 0.9) {
+                    filterCtx.fillRect(x, y, pixelSize, pixelSize);
+                }
+            }
+        }
+    }
+    
+    // Initial draw
+    drawPixelationGrid();
+    
+    // Redraw on window resize
+    window.addEventListener('resize', drawPixelationGrid);
 }
 
 // Initialize application
@@ -700,6 +773,7 @@ function init() {
     initDomElements();
     setupEventListeners();
     runSimulation();
+    initPixelationFilter();
 }
 
 // Run initialization when document is loaded

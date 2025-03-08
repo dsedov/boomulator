@@ -15,21 +15,21 @@
     --border-color: #2183c8;      /* Blue border color */
 }
 
-@import url('https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap');
-
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Share Tech Mono', 'VT323', monospace;
-    letter-spacing: 0.5px;
-    font-size: 14px;
+    font-family: 'Tiny5', monospace;
+    letter-spacing: 1px;
+    font-size: 16px;
+    image-rendering: pixelated;
+    text-transform: uppercase;
 }
 
 body {
     background-color: var(--bg-color);
     color: var(--text-color);
-    line-height: 1.6;
+    line-height: 1.8;
     padding: 20px;
     min-height: 100vh;
     display: flex;
@@ -38,7 +38,10 @@ body {
     text-shadow: none;
     position: relative;
     overflow-x: hidden;
-    font-size: 16px;
+    font-size: 14px;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 /* Add scanlines for CRT effect */
@@ -61,6 +64,22 @@ body::before {
     opacity: 0.15;
 }
 
+/* Add pixelation overlay */
+body::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg width='2' height='2' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1' height='1' fill='rgba(0,0,0,0.03)'/%3E%3Crect width='1' height='1' x='1' y='1' fill='rgba(0,0,0,0.03)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 2px 2px;
+    z-index: 999;
+    image-rendering: pixelated;
+}
+
 .container {
     width: 100%;
     max-width: 1200px;
@@ -77,15 +96,13 @@ header {
 }
 
 h1 {
-    font-size: 18px; /* Slightly larger but still console-like */
+    font-size: 28px;
     margin: 1rem 0 0.5rem 0;
     color: var(--primary-color);
-    text-transform: uppercase;
     letter-spacing: 2px;
     position: relative;
     display: inline-block;
     text-shadow: none;
-    font-family: 'Share Tech Mono', monospace;
     font-weight: normal;
 }
 
@@ -108,7 +125,6 @@ p.subtitle {
     opacity: 0.8;
     max-width: 800px;
     margin: 0 auto;
-    font-family: 'Share Tech Mono', monospace;
     margin-top: 4px;
     display: flex;
     justify-content: center;
@@ -128,7 +144,6 @@ main {
     padding: 2rem;
     width: 100%;
     position: relative;
-    font-family: 'Share Tech Mono', monospace;
     border: 2px solid var(--border-color);
 }
 
@@ -147,9 +162,7 @@ main {
     height: 100%;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
-                linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
-    background-size: 20px 20px; /* Smaller grid cells for more pixel-art feel */
+    background: transparent;
 }
 
 canvas {
@@ -158,6 +171,10 @@ canvas {
     position: absolute;
     top: 0;
     left: 0;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    image-rendering: -moz-crisp-edges;
+    -ms-interpolation-mode: nearest-neighbor;
 }
 
 .controls {
@@ -180,8 +197,7 @@ label {
     font-weight: normal;
     margin-bottom: 0.5rem;
     color: var(--text-color);
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 14px;
+    font-size: 15px;
 }
 
 input[type="number"], input[type="range"] {
@@ -194,7 +210,6 @@ input[type="number"], input[type="range"] {
     transition: all 0.3s ease;
     background-color: transparent;
     color: var(--primary-color);
-    font-family: 'Share Tech Mono', monospace;
 }
 
 input[type="number"]:focus, input[type="range"]:focus {
@@ -206,10 +221,11 @@ input[type="number"]:focus, input[type="range"]:focus {
 /* Custom styling for range sliders */
 input[type="range"] {
     -webkit-appearance: none;
-    height: 6px;
+    height: 8px;
     background: var(--dark-color);
     border: 2px solid var(--border-color);
     padding: 0;
+    image-rendering: pixelated;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -217,16 +233,20 @@ input[type="range"]::-webkit-slider-thumb {
     width: 16px;
     height: 16px;
     background: var(--yellow-color);
-    border: none;
+    border: 2px solid var(--border-color);
     cursor: pointer;
+    image-rendering: pixelated;
+    box-shadow: none;
 }
 
 input[type="range"]::-moz-range-thumb {
     width: 16px;
     height: 16px;
     background: var(--yellow-color);
-    border: none;
+    border: 2px solid var(--border-color);
     cursor: pointer;
+    image-rendering: pixelated;
+    box-shadow: none;
 }
 
 .slider-container {
@@ -250,7 +270,6 @@ input[type="range"]::-moz-range-thumb {
     border-left: 2px solid var(--border-color);
     border-right: 2px solid var(--border-color);
     padding: 0 5px;
-    font-family: 'Share Tech Mono', monospace;
     font-size: 14px;
 }
 
@@ -259,15 +278,15 @@ input[type="range"]::-moz-range-thumb {
     background: transparent;
     color: var(--primary-color);
     border: 2px solid var(--border-color);
-    border-radius: var(--border-radius);
-    font-size: 14px;
-    font-family: 'Share Tech Mono', monospace;
+    border-radius: 0;
+    font-size: 16px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: none;
     margin-top: 1rem;
-    text-transform: uppercase;
     position: relative;
     box-shadow: none;
+    image-rendering: pixelated;
+    -webkit-font-smoothing: none;
 }
 
 .btn:hover {
@@ -276,7 +295,9 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .btn:active {
-    transform: scale(0.98);
+    background: var(--border-color);
+    color: var(--dark-color);
+    border-style: inset;
 }
 
 .hint {
@@ -285,7 +306,6 @@ input[type="range"]::-moz-range-thumb {
     opacity: 0.7;
     text-align: center;
     margin-top: 10px;
-    font-family: 'Share Tech Mono', monospace;
 }
 
 .statistics {
@@ -310,7 +330,6 @@ input[type="range"]::-moz-range-thumb {
 .stat-card h3 {
     font-size: 14px;
     margin-bottom: 0.5rem;
-    text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--primary-color);
     opacity: 0.8;
@@ -318,7 +337,6 @@ input[type="range"]::-moz-range-thumb {
 
 .stat-card p {
     font-size: 14px;
-    font-family: 'Share Tech Mono', monospace;
     position: relative;
 }
 
@@ -376,9 +394,7 @@ footer {
     z-index: 100;
     font-size: 14px;
     color: var(--primary-color);
-    text-transform: uppercase;
     letter-spacing: 1px;
-    font-family: 'Share Tech Mono', monospace;
     text-shadow: none;
     border: 2px solid var(--border-color);
 }
@@ -404,7 +420,6 @@ footer {
     border-radius: 0;
     pointer-events: none;
     font-size: 14px;
-    font-family: 'Share Tech Mono', monospace;
     z-index: 100;
     display: none;
     box-shadow: none;
