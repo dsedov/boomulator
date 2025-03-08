@@ -127,7 +127,10 @@ function setupEventListeners() {
             const hoverInfo = getDataPointFromMousePosition(mousePosition);
             if (hoverInfo) {
                 tooltip.style.display = 'block';
-                tooltip.style.left = `${e.clientX + 10}px`;
+                
+                // Position tooltip relative to the mouse cursor
+                // Using position:fixed in CSS, so we just need viewport coordinates
+                tooltip.style.left = `${e.clientX + 15}px`;
                 tooltip.style.top = `${e.clientY - 40}px`;
                 
                 // Format population based on scale
