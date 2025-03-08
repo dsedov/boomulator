@@ -238,8 +238,8 @@ function simulatePopulation(lifespan, fertilityRate, childMortalityRate, migrati
     const cohortSize = 5;
     const numCohorts = maxAge / cohortSize;
     
-    // Convert child mortality from percentage to rate (0-1)
-    const infantMortalityRate = childMortalityRate / 100;
+    // Convert child mortality from deaths per 1000 to rate (0-1)
+    const infantMortalityRate = childMortalityRate / 1000;
     
     // Initialize population with approximate age distribution
     let cohorts = new Array(numCohorts).fill(0);
