@@ -273,6 +273,12 @@ input[type="range"]::-moz-range-thumb {
     font-size: 14px;
 }
 
+.button-container {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
 .btn {
     padding: 0.8rem 1.5rem;
     background: transparent;
@@ -282,7 +288,6 @@ input[type="range"]::-moz-range-thumb {
     font-size: 16px;
     cursor: pointer;
     transition: none;
-    margin-top: 1rem;
     position: relative;
     box-shadow: none;
     image-rendering: pixelated;

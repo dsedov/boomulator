@@ -75,7 +75,22 @@ function debounceUpdate(callback, delay = 200) {
     if (updateTimerId) {
         clearTimeout(updateTimerId);
     }
-    updateTimerId = setTimeout(callback, delay);
+    updateTimerId = setTimeout(() => {
+        callback();
+        updateURLWithParameters();
+    }, delay);
+}
+
+function updateURLWithParameters() {
+    const params = new URLSearchParams();
+    params.set('lifespan', lifespanSlider.value);
+    params.set('fertility', replacementSlider.value);
+    params.set('childMortality', childMortalitySlider.value);
+    params.set('migration', migrationSlider.value);
+    params.set('startPopulation', startPopulationSlider.value);
+    params.set('endYear', endYearSlider.value);
+    
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
 }
 
 // Event listeners
@@ -116,7 +131,27 @@ function setupEventListeners() {
     endYearSlider.addEventListener('input', sliderInputHandler);
     
     // Keep the button for immediate updates if needed
-    simulateBtn.addEventListener('click', runSimulation);
+    simulateBtn.addEventListener('click', () => {
+        runSimulation();
+        updateURLWithParameters();
+    });
+    
+    // Share button functionality
+    const shareBtn = document.getElementById('shareBtn');
+    shareBtn.addEventListener('click', async () => {
+        updateURLWithParameters();
+        try {
+            await navigator.clipboard.writeText(window.location.href);
+            const originalText = shareBtn.textContent;
+            shareBtn.textContent = "URL Copied!";
+            setTimeout(() => {
+                shareBtn.textContent = originalText;
+            }, 2000);
+        } catch (err) {
+            console.error('Failed to copy: ', err);
+            alert('Could not copy URL. Please copy it manually from your browser address bar.');
+        }
+    });
     
     canvas.addEventListener('mousemove', function(e) {
         const rect = canvas.getBoundingClientRect();
@@ -815,9 +850,45 @@ function initPixelationFilter() {
     window.addEventListener('resize', drawPixelationGrid);
 }
 
+// Load parameters from URL
+function loadParametersFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    
+    if (params.has('lifespan')) {
+        lifespanSlider.value = params.get('lifespan');
+        lifespanValue.textContent = lifespanSlider.value;
+    }
+    
+    if (params.has('fertility')) {
+        replacementSlider.value = params.get('fertility');
+        replacementValue.textContent = replacementSlider.value;
+    }
+    
+    if (params.has('childMortality')) {
+        childMortalitySlider.value = params.get('childMortality');
+        childMortalityValue.textContent = parseFloat(childMortalitySlider.value).toFixed(1);
+    }
+    
+    if (params.has('migration')) {
+        migrationSlider.value = params.get('migration');
+        migrationValue.textContent = parseFloat(migrationSlider.value).toFixed(1);
+    }
+    
+    if (params.has('startPopulation')) {
+        startPopulationSlider.value = params.get('startPopulation');
+        startPopulationValue.textContent = parseFloat(startPopulationSlider.value).toFixed(0);
+    }
+    
+    if (params.has('endYear')) {
+        endYearSlider.value = params.get('endYear');
+        endYearValue.textContent = endYearSlider.value;
+    }
+}
+
 // Initialize application
 function init() {
     initDomElements();
+    loadParametersFromURL();
     setupEventListeners();
     runSimulation();
     initPixelationFilter();
