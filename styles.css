@@ -198,7 +198,7 @@ input[type="number"], input[type="range"] {
 }
 
 input[type="number"]:focus, input[type="range"]:focus {
-    border-left: 4px solid var(--border-color);
+    border-left: 4px solid var(--yellow-color);
     outline: none;
     box-shadow: none;
 }
@@ -216,7 +216,7 @@ input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 16px;
     height: 16px;
-    background: var(--border-color);
+    background: var(--yellow-color);
     border: none;
     cursor: pointer;
 }
@@ -224,7 +224,7 @@ input[type="range"]::-webkit-slider-thumb {
 input[type="range"]::-moz-range-thumb {
     width: 16px;
     height: 16px;
-    background: var(--border-color);
+    background: var(--yellow-color);
     border: none;
     cursor: pointer;
 }

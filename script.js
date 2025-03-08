@@ -629,22 +629,7 @@ function drawGraph() {
         ctx.fillText(year.toString(), xPos, height - margin.bottom + 10);
     }
     
-    // Draw axis labels
-    ctx.font = '14px "Share Tech Mono", monospace';
-    ctx.fillStyle = '#7dfdf9';
-    
-    // X-axis label
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText('Year', width / 2, height - 15);
-    
-    // Y-axis label
-    ctx.save();
-    ctx.translate(15, height / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.textAlign = 'center';
-    ctx.fillText('Population (Billions)', 0, 0);
-    ctx.restore();
+    // No axis labels for cleaner console look
     
     // Draw the data line with blue color
     ctx.beginPath();
